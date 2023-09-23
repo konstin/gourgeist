@@ -1,3 +1,4 @@
+use crate::crate_cache_dir;
 use anyhow::Context;
 use camino::Utf8PathBuf;
 use fs_err as fs;
@@ -7,7 +8,7 @@ use tempfile::NamedTempFile;
 use tracing::info;
 
 pub fn download_wheel_cached(filename: &str, url: &str) -> anyhow::Result<Utf8PathBuf> {
-    let wheels_cache = crate::crate_cache_dir()?.join("wheels");
+    let wheels_cache = crate_cache_dir()?.join("wheels");
     let cached_wheel = wheels_cache.join(filename);
     if cached_wheel.is_file() {
         info!("Using cached wheel at {cached_wheel}");
@@ -26,9 +27,7 @@ pub fn download_wheel_cached(filename: &str, url: &str) -> anyhow::Result<Utf8Pa
             tempfile_path.display()
         )
     })?;
-    tempfile
-        .persist(&cached_wheel)
-        .with_context(|| format!("Failed to persist tempfile to {}", cached_wheel))?;
+    tempfile.persist(&cached_wheel)?;
     Ok(cached_wheel)
 }
 

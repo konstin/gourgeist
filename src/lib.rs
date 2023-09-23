@@ -1,21 +1,22 @@
 use crate::bare::create_bare_venv;
-use anyhow::Context;
 use camino::{Utf8Path, Utf8PathBuf};
 use dirs::cache_dir;
 #[cfg(feature = "install")]
 use install_wheel_rs::install_wheel_in_venv;
 use interpreter::InterpreterInfo;
+use std::io;
 
+use crate::packages::download_wheel_cached;
 pub use interpreter::get_interpreter_info;
 
 mod bare;
 mod interpreter;
 mod packages;
 
-pub(crate) fn crate_cache_dir() -> anyhow::Result<Utf8PathBuf> {
+pub(crate) fn crate_cache_dir() -> io::Result<Utf8PathBuf> {
     Ok(cache_dir()
         .and_then(|path| Utf8PathBuf::from_path_buf(path).ok())
-        .context("Couldn't detect cache dir")?
+        .ok_or_else(|| io::Error::new(io::ErrorKind::Other, "Couldn't detect cache dir"))?
         .join(env!("CARGO_PKG_NAME")))
 }
 
@@ -39,7 +40,7 @@ pub fn create_venv(
                 ("wheel-0.41.2-py3-none-any.whl", "https://files.pythonhosted.org/packages/b8/8b/31273bf66016be6ad22bb7345c37ff350276cfd46e389a0c2ac5da9d9073/wheel-0.41.2-py3-none-any.whl"),
             ];
             for (filename, url) in packages {
-                let wheel_file = packages::download_wheel_cached(filename, url)?;
+                let wheel_file = download_wheel_cached(filename, url)?;
                 install_wheel_in_venv(
                     wheel_file.as_std_path(),
                     location.as_std_path(),

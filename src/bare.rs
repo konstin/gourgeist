@@ -1,13 +1,12 @@
 //! Create a bare virtualenv without any packages install
 
 use crate::interpreter::InterpreterInfo;
-use anyhow::Context;
 use camino::{Utf8Path, Utf8PathBuf};
 use fs_err as fs;
 use fs_err::os::unix::fs::symlink;
 use fs_err::File;
 use std::io;
-use std::io::{BufWriter, Write};
+use std::io::{BufWriter, ErrorKind, Write};
 
 /// The bash activate scripts with the venv dependent paths patches out
 const ACTIVATE_TEMPLATES: &[(&str, &str)] = &[
@@ -22,20 +21,6 @@ const ACTIVATE_TEMPLATES: &[(&str, &str)] = &[
     ),
 ];
 const VIRTUALENV_PATCH: &str = include_str!("_virtualenv.py");
-
-/// [`symlink`] wrapper
-fn symlink_with_context(
-    src: impl AsRef<Utf8Path>,
-    dst: impl AsRef<Utf8Path>,
-) -> anyhow::Result<()> {
-    symlink(src.as_ref(), dst.as_ref()).with_context(|| {
-        format!(
-            "Failed to create symlink. original: {}, link: {}",
-            src.as_ref(),
-            dst.as_ref().join("python")
-        )
-    })
-}
 
 /// Very basic `.cfg` file format writer.
 fn write_cfg(f: &mut impl Write, data: &[(&str, String); 8]) -> io::Result<()> {
@@ -64,15 +49,13 @@ pub fn create_bare_venv(
     location: &Utf8Path,
     base_python: &Utf8Path,
     info: &InterpreterInfo,
-) -> anyhow::Result<VenvPaths> {
+) -> io::Result<VenvPaths> {
     if location.exists() {
-        fs::remove_dir_all(&location)?;
+        fs::remove_dir_all(location)?;
     }
-    fs::create_dir_all(&location)?;
+    fs::create_dir_all(location)?;
     // TODO: I bet on windows we'll have to strip the prefix again
-    let location = location
-        .canonicalize_utf8()
-        .context("Failed to canonicalize virtualenv path, does it exist?")?;
+    let location = location.canonicalize_utf8()?;
     let bin_dir = {
         #[cfg(unix)]
         {
@@ -90,12 +73,11 @@ pub fn create_bare_venv(
 
     fs::create_dir(&bin_dir)?;
     let venv_python = bin_dir.join("python");
-    symlink_with_context(base_python, &venv_python)?;
-    symlink_with_context("python", bin_dir.join(format!("python{}", info.major)))?;
-    symlink_with_context(
-        "python",
-        bin_dir.join(format!("python{}.{}", info.major, info.minor)),
-    )?;
+    symlink(base_python, &venv_python)?;
+    let dst = bin_dir.join(format!("python{}", info.major));
+    symlink("python", dst)?;
+    let dst = bin_dir.join(format!("python{}.{}", info.major, info.minor));
+    symlink("python", dst)?;
     for (name, template) in ACTIVATE_TEMPLATES {
         let activator = template
             .replace("{{ VIRTUAL_ENV_DIR }}", location.as_str())
@@ -108,14 +90,17 @@ pub fn create_bare_venv(
     fs::write(location.join(".gitignore"), "*")?;
 
     // pyvenv.cfg
+    let python_home = base_python
+        .parent()
+        .ok_or_else(|| {
+            io::Error::new(
+                ErrorKind::NotFound,
+                "The python interpreter needs to have a parent directory",
+            )
+        })?
+        .to_string();
     let pyvenv_cfg_data = &[
-        (
-            "home",
-            base_python
-                .parent()
-                .context("The python interpreter.rs needs to have a parent directory")?
-                .to_string(),
-        ),
+        ("home", python_home),
         ("implementation", "CPython".to_string()),
         ("version_info", info.python_version.clone()),
         ("virtualenv-rs", env!("CARGO_PKG_VERSION").to_string()),
