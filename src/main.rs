@@ -17,8 +17,18 @@ use tracing_subscriber::layer::SubscriberExt;
 use tracing_subscriber::util::SubscriberInitExt;
 use tracing_subscriber::{fmt, EnvFilter};
 
-/// The bash activate script with the main path patched out
-const ACTIVATE_TEMPLATE: &str = include_str!("activate");
+/// The bash activate scripts with the venv dependent paths patches out
+const ACTIVATE_TEMPLATES: &[(&str, &str)] = &[
+    ("activate", include_str!("activator/activate")),
+    ("activate.csh", include_str!("activator/activate.csh")),
+    ("activate.fish", include_str!("activator/activate.fish")),
+    ("activate.nu", include_str!("activator/activate.nu")),
+    ("activate.ps1", include_str!("activator/activate.ps1")),
+    (
+        "activate_this.py",
+        include_str!("activator/activate_this.py"),
+    ),
+];
 const QUERY_PYTHON: &str = include_str!("query_python.py");
 const VIRTUALENV_PATCH: &str = include_str!("_virtualenv.py");
 
@@ -238,10 +248,15 @@ fn create_venv(
         "python",
         bin_dir.join(format!("python{}.{}", info.major, info.minor)),
     )?;
-    fs::write(
-        bin_dir.join("activate"),
-        ACTIVATE_TEMPLATE.replace("{{ VIRTUAL_ENV_TEMPLATE_STRING }}", location.as_str()),
-    )?;
+    for (name, template) in ACTIVATE_TEMPLATES {
+        let activator = template
+            .replace("{{ VIRTUAL_ENV_DIR }}", location.as_str())
+            .replace(
+                "{{ RELATIVE_SITE_PACKAGES }}",
+                &format!("../lib/python{}.{}/site-packages", info.major, info.minor),
+            );
+        fs::write(bin_dir.join(name), activator)?;
+    }
     fs::write(location.join(".gitignore"), "*")?;
 
     // pyvenv.cfg
