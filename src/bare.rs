@@ -46,6 +46,7 @@ fn write_cfg(f: &mut impl Write, data: &[(&str, String); 8]) -> io::Result<()> {
 }
 
 /// Absolute paths of the virtualenv
+#[derive(Debug)]
 pub struct VenvPaths {
     /// The location of the virtualenv, e.g. `.venv`
     pub root: Utf8PathBuf,
@@ -64,14 +65,14 @@ pub fn create_bare_venv(
     base_python: &Utf8Path,
     info: &InterpreterInfo,
 ) -> anyhow::Result<VenvPaths> {
-    // TODO: I bet on windows we'll have to strip the prefix again
-    let location = location
-        .canonicalize_utf8()
-        .context("Failed to canonicalize virtualenv path, does it exist?")?;
     if location.exists() {
         fs::remove_dir_all(&location)?;
     }
     fs::create_dir_all(&location)?;
+    // TODO: I bet on windows we'll have to strip the prefix again
+    let location = location
+        .canonicalize_utf8()
+        .context("Failed to canonicalize virtualenv path, does it exist?")?;
     let bin_dir = {
         #[cfg(unix)]
         {
