@@ -1,4 +1,6 @@
-use anyhow::{format_err, Context};
+//! Deprecated, use only as template when implementing caching
+
+use crate::Error;
 use camino::{Utf8Path, Utf8PathBuf};
 use dirs::data_dir;
 use fs_err as fs;
@@ -11,7 +13,7 @@ pub(crate) fn install_base_packages(
     bin_dir: &Utf8Path,
     venv_python: &Utf8Path,
     site_packages: &Utf8Path,
-) -> anyhow::Result<()> {
+) -> Result<(), Error> {
     // Install packages
     // TODO: Implement our own logic:
     //  * Our own cache and logic to detect whether a wheel is present
@@ -26,17 +28,14 @@ pub(crate) fn install_base_packages(
         ("setuptools", "68.2.2"),
         ("wheel", "0.41.2"),
     ];
-    let virtualenv_data_dir = data_dir()
-        .and_then(|path| Utf8PathBuf::from_path_buf(path).ok())
-        .context("Couldn't get data dir")?;
+    let virtualenv_data_dir: Utf8PathBuf = data_dir().unwrap().try_into().unwrap();
     for (name, version) in packages {
         // TODO: acquire lock
         let unpacked_wheel = virtualenv_data_dir
             .join(prefix)
             .join(format!("{name}-{version}-{wheel_tag}"));
         debug!("Installing {name} by copying from {unpacked_wheel}");
-        copy_dir_all(&unpacked_wheel, site_packages.as_std_path())
-            .with_context(|| format!("Failed to copy {unpacked_wheel} to {site_packages}"))?;
+        copy_dir_all(&unpacked_wheel, site_packages.as_std_path())?;
 
         // Generate launcher
         // virtualenv for some reason creates extra entrypoints that we don't
@@ -48,7 +47,8 @@ pub(crate) fn install_base_packages(
         )?;
         let entry_points_mapping = configparser::ini::Ini::new_cs()
             .read(ini_text)
-            .map_err(|err| format_err!("{name} entry_points.txt is invalid: {}", err))?;
+            .map_err(|err| format!("{name} entry_points.txt is invalid: {}", err))
+            .unwrap();
         for (key, value) in entry_points_mapping
             .get("console_scripts")
             .cloned()
@@ -58,8 +58,9 @@ pub(crate) fn install_base_packages(
                 .as_ref()
                 .and_then(|value| value.split_once(':'))
                 .ok_or_else(|| {
-                    format_err!("{name} entry_points.txt {key} has an invalid value {value:?}")
-                })?;
+                    format!("{name} entry_points.txt {key} has an invalid value {value:?}")
+                })
+                .unwrap();
             let launcher = bin_dir.join(key);
             let launcher_script = unix_launcher_script(venv_python, import_from, function);
             fs::write(&launcher, launcher_script)?;

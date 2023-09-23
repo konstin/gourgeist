@@ -1,5 +1,6 @@
 use camino::Utf8PathBuf;
 use clap::Parser;
+use std::error::Error;
 use std::process::ExitCode;
 use std::time::Instant;
 use tracing::info;
@@ -17,7 +18,7 @@ struct Cli {
     bare: bool,
 }
 
-fn run() -> anyhow::Result<()> {
+fn run() -> Result<(), virtualenv_rs::Error> {
     let cli = Cli::parse();
     let location = cli.path.unwrap_or(Utf8PathBuf::from(".venv-rs"));
     let base_python = cli
@@ -41,8 +42,10 @@ fn main() -> ExitCode {
     info!("Took {}ms", start.elapsed().as_millis());
     if let Err(err) = result {
         eprintln!("💥 virtualenv creator failed");
-        for err in err.chain() {
+        let mut last_error: Option<&(dyn Error + 'static)> = Some(&err);
+        while let Some(err) = last_error {
             eprintln!("  Caused by: {}", err);
+            last_error = err.source();
         }
         ExitCode::FAILURE
     } else {

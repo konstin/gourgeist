@@ -43,6 +43,13 @@ pub enum Error {
     #[cfg(feature = "install")]
     #[error("Failed to contact pypi")]
     MinReq(#[from] minreq::Error),
+    #[cfg(feature = "install")]
+    #[error("Failed to install {package}")]
+    InstallWheel {
+        package: String,
+        #[source]
+        err: install_wheel_rs::Error,
+    },
 }
 
 pub(crate) fn crate_cache_dir() -> io::Result<Utf8PathBuf> {
@@ -58,7 +65,7 @@ pub fn create_venv(
     base_python: &Utf8Path,
     info: &InterpreterInfo,
     bare: bool,
-) -> anyhow::Result<()> {
+) -> Result<(), Error> {
     let paths = create_bare_venv(location, base_python, info)?;
 
     if !bare {
@@ -79,7 +86,11 @@ pub fn create_venv(
                     paths.interpreter.as_std_path(),
                     info.major,
                     info.minor,
-                )?;
+                )
+                .map_err(|err| Error::InstallWheel {
+                    package: filename.to_string(),
+                    err,
+                })?;
             }
         }
         #[cfg(not(feature = "install"))]
