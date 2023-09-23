@@ -494,7 +494,7 @@ dependencies = [
 [[package]]
 name = "install-wheel-rs"
 version = "0.0.3"
-source = "git+https://github.com/konstin/poc-monotrail#cc4927427005f56a1460976daa30ff3eece8772e"
+source = "git+https://github.com/konstin/poc-monotrail#09a644df948f57fe45f5b4e9ba0881be36dfe2bd"
 dependencies = [
  "base64 0.21.4",
  "configparser",

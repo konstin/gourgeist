@@ -23,9 +23,8 @@ tracing = "0.1.37"
 tracing-subscriber = { version = "0.3.17", features = ["env-filter"] }
 
 [features]
-default = ["install", "network"]
-install = ["install-wheel-rs"]
-network = ["minreq"]
+default = ["install"]
+install = ["install-wheel-rs", "minreq"]
 
 # zip implementation
 [profile.dev.package.adler]

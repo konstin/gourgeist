@@ -1,17 +1,49 @@
 use crate::bare::create_bare_venv;
+#[cfg(feature = "install")]
+use crate::packages::download_wheel_cached;
 use camino::{Utf8Path, Utf8PathBuf};
 use dirs::cache_dir;
 #[cfg(feature = "install")]
 use install_wheel_rs::install_wheel_in_venv;
 use interpreter::InterpreterInfo;
 use std::io;
+use tempfile::PersistError;
+use thiserror::Error;
 
-use crate::packages::download_wheel_cached;
 pub use interpreter::get_interpreter_info;
 
 mod bare;
 mod interpreter;
+#[cfg(feature = "install")]
 mod packages;
+#[cfg(not(feature = "install"))]
+mod virtualenv_cache;
+
+#[derive(Debug, Error)]
+pub enum Error {
+    #[error(transparent)]
+    IO(#[from] io::Error),
+    /// It's effectively an io error with extra info
+    #[error(transparent)]
+    Persist(#[from] PersistError),
+    /// Adds url and target path to the io error
+    #[error("Failed to download wheel from {url} to {path}")]
+    WheelDownload {
+        url: String,
+        path: Utf8PathBuf,
+        #[source]
+        err: io::Error,
+    },
+    #[error("Failed to query python interpreter at {interpreter}")]
+    PythonSubcommand {
+        interpreter: Utf8PathBuf,
+        #[source]
+        err: io::Error,
+    },
+    #[cfg(feature = "install")]
+    #[error("Failed to contact pypi")]
+    MinReq(#[from] minreq::Error),
+}
 
 pub(crate) fn crate_cache_dir() -> io::Result<Utf8PathBuf> {
     Ok(cache_dir()
@@ -52,7 +84,11 @@ pub fn create_venv(
         }
         #[cfg(not(feature = "install"))]
         {
-            install_base_packages(&paths.bin, &paths.interpreter, &paths.site_packages)?;
+            virtualenv_cache::install_base_packages(
+                &paths.bin,
+                &paths.interpreter,
+                &paths.site_packages,
+            )?;
         }
     }
 

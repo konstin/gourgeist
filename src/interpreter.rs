@@ -1,9 +1,9 @@
-use crate::crate_cache_dir;
-use anyhow::{bail, Context};
+use crate::{crate_cache_dir, Error};
 use camino::{Utf8Path, Utf8PathBuf};
 use fs_err as fs;
 use fs_err::File;
 use serde::{Deserialize, Serialize};
+use std::io;
 use std::io::{BufReader, Write};
 use std::process::{Command, Stdio};
 use tracing::{debug, error, warn};
@@ -20,7 +20,7 @@ pub struct InterpreterInfo {
 }
 
 /// Gets the interpreter.rs info, either cached or by running it.
-pub fn get_interpreter_info(interpreter: &Utf8Path) -> anyhow::Result<InterpreterInfo> {
+pub fn get_interpreter_info(interpreter: &Utf8Path) -> Result<InterpreterInfo, Error> {
     let cache_dir = crate_cache_dir()?.join("interpreter_info");
 
     let index = seahash::hash(interpreter.as_str().as_bytes());
@@ -28,7 +28,8 @@ pub fn get_interpreter_info(interpreter: &Utf8Path) -> anyhow::Result<Interprete
 
     let modified = fs::metadata(interpreter)?
         .modified()?
-        .elapsed()?
+        .elapsed()
+        .unwrap_or_default()
         .as_millis();
 
     if cache_file.exists() {
@@ -42,6 +43,11 @@ pub fn get_interpreter_info(interpreter: &Utf8Path) -> anyhow::Result<Interprete
                 debug!("Using cache entry {cache_file}");
                 if modified == cache_entry.modified && interpreter == cache_entry.interpreter {
                     return Ok(cache_entry.interpreter_info);
+                } else {
+                    debug!("Removing mismatching cache entry {cache_file}");
+                    if let Err(remove_err) = fs::remove_file(&cache_file) {
+                        warn!("Failed to mismatching cache file at {cache_file}: {remove_err}")
+                    }
                 }
             }
             Err(cache_err) => {
@@ -54,14 +60,14 @@ pub fn get_interpreter_info(interpreter: &Utf8Path) -> anyhow::Result<Interprete
     }
 
     let interpreter_info = query_interpreter(interpreter)?;
-    fs::create_dir_all(&cache_dir).context("Failed to create cache dir")?;
+    fs::create_dir_all(&cache_dir)?;
     let cache_entry = CacheEntry {
         interpreter: interpreter.to_path_buf(),
         modified,
         interpreter_info: interpreter_info.clone(),
     };
-    let mut cache_writer = File::create(&cache_file).context("Failed to create cache file")?;
-    serde_json::to_writer(&mut cache_writer, &cache_entry).context("Failed to write cache file")?;
+    let mut cache_writer = File::create(&cache_file)?;
+    serde_json::to_writer(&mut cache_writer, &cache_entry).map_err(io::Error::from)?;
 
     Ok(interpreter_info)
 }
@@ -74,7 +80,7 @@ struct CacheEntry {
 }
 
 /// Runs a python script that returns the relevant info about the interpreter.rs as json
-fn query_interpreter(interpreter: &Utf8Path) -> anyhow::Result<InterpreterInfo> {
+fn query_interpreter(interpreter: &Utf8Path) -> Result<InterpreterInfo, Error> {
     let mut child = Command::new(interpreter)
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
@@ -84,7 +90,10 @@ fn query_interpreter(interpreter: &Utf8Path) -> anyhow::Result<InterpreterInfo> 
     if let Some(mut stdin) = child.stdin.take() {
         stdin
             .write_all(QUERY_PYTHON.as_bytes())
-            .context("Failed to pass script to python")?;
+            .map_err(|err| Error::PythonSubcommand {
+                interpreter: interpreter.to_path_buf(),
+                err,
+            })?;
     }
     let output = child.wait_with_output()?;
     let stdout = String::from_utf8(output.stdout).unwrap_or_else(|err| {
@@ -106,21 +115,34 @@ fn query_interpreter(interpreter: &Utf8Path) -> anyhow::Result<InterpreterInfo> 
     // stderr isn't technically a criterion for success, but i don't know of any cases where there
     // should be stderr output and if there is, we want to know
     if !output.status.success() || !stderr.trim().is_empty() {
-        bail!(
-            "Querying python at {} failed with status {}:\n--- stdout:\n{}\n--- stderr:\n{}",
-            interpreter,
-            output.status,
-            stdout.trim(),
-            stderr.trim()
-        )
+        return Err(Error::PythonSubcommand {
+            interpreter: interpreter.to_path_buf(),
+            err: io::Error::new(
+                io::ErrorKind::Other,
+                format!(
+                    "Querying python at {} failed with status {}:\n--- stdout:\n{}\n--- stderr:\n{}",
+                    interpreter,
+                    output.status,
+                    stdout.trim(),
+                    stderr.trim()
+                ),
+            )
+        });
     }
-    let data = serde_json::from_str::<InterpreterInfo>(&stdout).with_context(||
-        format!(
-            "Querying python at {} did not return the expected data:\n--- stdout:\n{}\n--- stderr:\n{}",
-            interpreter,
-            stdout.trim(),
-            stderr.trim()
-        )
+    let data = serde_json::from_str::<InterpreterInfo>(&stdout).map_err(|err|
+        Error::PythonSubcommand {
+            interpreter: interpreter.to_path_buf(),
+            err: io::Error::new(
+                io::ErrorKind::Other,
+                format!(
+                    "Querying python at {} did not return the expected data ({}):\n--- stdout:\n{}\n--- stderr:\n{}",
+                    interpreter,
+                    err,
+                    stdout.trim(),
+                    stderr.trim()
+                )
+            )
+        }
     )?;
     Ok(data)
 }
