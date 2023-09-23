@@ -8,7 +8,6 @@ use fs_err::os::unix::fs::symlink;
 use fs_err::File;
 use std::io;
 use std::io::{BufWriter, Write};
-use std::path::Path;
 
 /// The bash activate scripts with the venv dependent paths patches out
 const ACTIVATE_TEMPLATES: &[(&str, &str)] = &[
@@ -46,39 +45,6 @@ fn write_cfg(f: &mut impl Write, data: &[(&str, String); 8]) -> io::Result<()> {
     Ok(())
 }
 
-/// https://stackoverflow.com/a/65192210/3549270
-pub fn copy_dir_all(src: impl AsRef<Path>, dst: impl AsRef<Path>) -> io::Result<()> {
-    fs::create_dir_all(&dst)?;
-    for entry in fs::read_dir(src.as_ref())? {
-        let entry = entry?;
-        let ty = entry.file_type()?;
-        if ty.is_dir() {
-            copy_dir_all(entry.path(), dst.as_ref().join(entry.file_name()))?;
-        } else {
-            fs::copy(entry.path(), dst.as_ref().join(entry.file_name()))?;
-        }
-    }
-    Ok(())
-}
-
-/// Template for the console scripts in the `bin` directory
-pub fn unix_launcher_script(python: &Utf8Path, import_from: &str, function: &str) -> String {
-    format!(
-        r#"#!{python}
-    # -*- coding: utf-8 -*-
-import re
-import sys
-from {import_from} import {function}
-if __name__ == '__main__':
-    sys.argv[0] = re.sub(r'(-script\.pyw|\.exe)?$', '', sys.argv[0])
-    sys.exit({function}())
-"#,
-        python = python,
-        import_from = import_from,
-        function = function
-    )
-}
-
 /// Absolute paths of the virtualenv
 pub struct VenvPaths {
     /// The location of the virtualenv, e.g. `.venv`
@@ -94,9 +60,9 @@ pub struct VenvPaths {
 
 /// Write all the files that belong to a venv without any packages installed.
 pub fn create_bare_venv(
-    location: &Utf8PathBuf,
-    base_python: &Utf8PathBuf,
-    info: InterpreterInfo,
+    location: &Utf8Path,
+    base_python: &Utf8Path,
+    info: &InterpreterInfo,
 ) -> anyhow::Result<VenvPaths> {
     // TODO: I bet on windows we'll have to strip the prefix again
     let location = location
@@ -150,12 +116,12 @@ pub fn create_bare_venv(
                 .to_string(),
         ),
         ("implementation", "CPython".to_string()),
-        ("version_info", info.python_version),
+        ("version_info", info.python_version.clone()),
         ("virtualenv-rs", env!("CARGO_PKG_VERSION").to_string()),
         // I wouldn't allow this option anyway
         ("include-system-site-packages", "false".to_string()),
-        ("base-prefix", info.base_prefix),
-        ("base-exec-prefix", info.base_exec_prefix),
+        ("base-prefix", info.base_prefix.clone()),
+        ("base-exec-prefix", info.base_exec_prefix.clone()),
         ("base-executable", base_python.to_string()),
     ];
     let mut pyvenv_cfg = BufWriter::new(File::create(location.join("pyvenv.cfg"))?);

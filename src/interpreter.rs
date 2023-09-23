@@ -1,6 +1,6 @@
+use crate::crate_cache_dir;
 use anyhow::{bail, Context};
-use camino::Utf8PathBuf;
-use dirs::cache_dir;
+use camino::{Utf8Path, Utf8PathBuf};
 use fs_err as fs;
 use fs_err::File;
 use serde::{Deserialize, Serialize};
@@ -20,12 +20,8 @@ pub struct InterpreterInfo {
 }
 
 /// Gets the interpreter.rs info, either cached or by running it.
-pub fn get_interpreter_info(interpreter: &Utf8PathBuf) -> anyhow::Result<InterpreterInfo> {
-    let cache_dir = cache_dir()
-        .and_then(|path| Utf8PathBuf::from_path_buf(path).ok())
-        .context("Couldn't detect cache dir")?
-        .join(env!("CARGO_PKG_NAME"))
-        .join("interpreter_info");
+pub fn get_interpreter_info(interpreter: &Utf8Path) -> anyhow::Result<InterpreterInfo> {
+    let cache_dir = crate_cache_dir()?.join("interpreter_info");
 
     let index = seahash::hash(interpreter.as_str().as_bytes());
     let cache_file = cache_dir.join(index.to_string()).with_extension("json");
@@ -44,7 +40,7 @@ pub fn get_interpreter_info(interpreter: &Utf8PathBuf) -> anyhow::Result<Interpr
         match cache_entry {
             Ok(cache_entry) => {
                 debug!("Using cache entry {cache_file}");
-                if modified == cache_entry.modified && interpreter == &cache_entry.interpreter {
+                if modified == cache_entry.modified && interpreter == cache_entry.interpreter {
                     return Ok(cache_entry.interpreter_info);
                 }
             }
@@ -60,7 +56,7 @@ pub fn get_interpreter_info(interpreter: &Utf8PathBuf) -> anyhow::Result<Interpr
     let interpreter_info = query_interpreter(interpreter)?;
     fs::create_dir_all(&cache_dir).context("Failed to create cache dir")?;
     let cache_entry = CacheEntry {
-        interpreter: interpreter.clone(),
+        interpreter: interpreter.to_path_buf(),
         modified,
         interpreter_info: interpreter_info.clone(),
     };
@@ -78,7 +74,7 @@ struct CacheEntry {
 }
 
 /// Runs a python script that returns the relevant info about the interpreter.rs as json
-fn query_interpreter(interpreter: &Utf8PathBuf) -> anyhow::Result<InterpreterInfo> {
+fn query_interpreter(interpreter: &Utf8Path) -> anyhow::Result<InterpreterInfo> {
     let mut child = Command::new(interpreter)
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())

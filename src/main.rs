@@ -25,7 +25,7 @@ fn run() -> anyhow::Result<()> {
         .unwrap_or(Utf8PathBuf::from("/home/konsti/.local/bin/python3.11"));
     let data = get_interpreter_info(&base_python)?;
 
-    create_venv(&location, &base_python, data, cli.bare)?;
+    create_venv(&location, &base_python, &data, cli.bare)?;
 
     Ok(())
 }
