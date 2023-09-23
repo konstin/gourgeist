@@ -98,10 +98,14 @@ pub fn create_bare_venv(
     base_python: &Utf8PathBuf,
     info: InterpreterInfo,
 ) -> anyhow::Result<VenvPaths> {
+    // TODO: I bet on windows we'll have to strip the prefix again
+    let location = location
+        .canonicalize_utf8()
+        .context("Failed to canonicalize virtualenv path, does it exist?")?;
     if location.exists() {
-        fs::remove_dir_all(location)?;
+        fs::remove_dir_all(&location)?;
     }
-    fs::create_dir_all(location)?;
+    fs::create_dir_all(&location)?;
     let bin_dir = {
         #[cfg(unix)]
         {
