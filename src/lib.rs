@@ -1,10 +1,6 @@
 use crate::bare::create_bare_venv;
-#[cfg(feature = "install")]
-use crate::packages::download_wheel_cached;
 use camino::{Utf8Path, Utf8PathBuf};
 use dirs::cache_dir;
-#[cfg(feature = "install")]
-use install_wheel_rs::install_wheel_in_venv;
 use interpreter::InterpreterInfo;
 use std::io;
 use tempfile::PersistError;
@@ -71,27 +67,7 @@ pub fn create_venv(
     if !bare {
         #[cfg(feature = "install")]
         {
-            // TODO: Use the json api instead
-            // TODO: Only check the json API so often (monthly? daily?)
-            let packages = [
-                ("pip-23.2.1-py3-none-any.whl", "https://files.pythonhosted.org/packages/50/c2/e06851e8cc28dcad7c155f4753da8833ac06a5c704c109313b8d5a62968a/pip-23.2.1-py3-none-any.whl"),
-                ("setuptools-68.2.2-py3-none-any.whl", "https://files.pythonhosted.org/packages/bb/26/7945080113158354380a12ce26873dd6c1ebd88d47f5bc24e2c5bb38c16a/setuptools-68.2.2-py3-none-any.whl"),
-                ("wheel-0.41.2-py3-none-any.whl", "https://files.pythonhosted.org/packages/b8/8b/31273bf66016be6ad22bb7345c37ff350276cfd46e389a0c2ac5da9d9073/wheel-0.41.2-py3-none-any.whl"),
-            ];
-            for (filename, url) in packages {
-                let wheel_file = download_wheel_cached(filename, url)?;
-                install_wheel_in_venv(
-                    wheel_file.as_std_path(),
-                    location.as_std_path(),
-                    paths.interpreter.as_std_path(),
-                    info.major,
-                    info.minor,
-                )
-                .map_err(|err| Error::InstallWheel {
-                    package: filename.to_string(),
-                    err,
-                })?;
-            }
+            packages::install_base_packages(location, info, &paths)?;
         }
         #[cfg(not(feature = "install"))]
         {
