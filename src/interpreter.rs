@@ -1,12 +1,13 @@
 use crate::{crate_cache_dir, Error};
-use camino::{Utf8Path, Utf8PathBuf};
+use camino::{FromPathBufError, Utf8Path, Utf8PathBuf};
 use fs_err as fs;
 use fs_err::File;
 use serde::{Deserialize, Serialize};
 use std::io;
 use std::io::{BufReader, Write};
 use std::process::{Command, Stdio};
-use tracing::{debug, error, warn};
+use std::time::SystemTime;
+use tracing::{debug, error, info, warn};
 
 const QUERY_PYTHON: &str = include_str!("query_python.py");
 
@@ -28,7 +29,7 @@ pub fn get_interpreter_info(interpreter: &Utf8Path) -> Result<InterpreterInfo, E
 
     let modified = fs::metadata(interpreter)?
         .modified()?
-        .elapsed()
+        .duration_since(SystemTime::UNIX_EPOCH)
         .unwrap_or_default()
         .as_millis();
 
@@ -44,7 +45,10 @@ pub fn get_interpreter_info(interpreter: &Utf8Path) -> Result<InterpreterInfo, E
                 if modified == cache_entry.modified && interpreter == cache_entry.interpreter {
                     return Ok(cache_entry.interpreter_info);
                 } else {
-                    debug!("Removing mismatching cache entry {cache_file}");
+                    debug!(
+                        "Removing mismatching cache entry {cache_file} ({} {} {} {})",
+                        modified, cache_entry.modified, interpreter, cache_entry.interpreter
+                    );
                     if let Err(remove_err) = fs::remove_file(&cache_file) {
                         warn!("Failed to mismatching cache file at {cache_file}: {remove_err}")
                     }
@@ -145,4 +149,48 @@ fn query_interpreter(interpreter: &Utf8Path) -> Result<InterpreterInfo, Error> {
         }
     )?;
     Ok(data)
+}
+
+/// Parse the value of the `-p`/`--python` option, which can be e.g. `3.11`, `python3.11`,
+/// `tools/bin/python3.11` or `/usr/bin/python3.11`.
+pub fn parse_python_cli(cli_python: Option<Utf8PathBuf>) -> Result<Utf8PathBuf, crate::Error> {
+    let python = if let Some(python) = cli_python {
+        if let Some((major, minor)) = python
+            .as_str()
+            .split_once('.')
+            .and_then(|(major, minor)| Some((major.parse::<u8>().ok()?, minor.parse::<u8>().ok()?)))
+        {
+            if major != 3 {
+                return Err(crate::Error::InvalidPythonInterpreter(
+                    "Only python 3 is supported".into(),
+                ));
+            }
+            info!("Looking for python {major}.{minor}");
+            Utf8PathBuf::from(format!("python{major}.{minor}"))
+        } else {
+            python
+        }
+    } else {
+        Utf8PathBuf::from("python3".to_string())
+    };
+
+    // Call `which` to find it in path, if not given a path
+    let python = if python.iter().count() > 1 {
+        // Does this path contain a slash (unix) or backslash (windows)? In that case, assume it's
+        // relative or absolute path that we don't need to resolve
+        info!("Assuming {python} is a path");
+        python
+    } else {
+        let python_in_path = which::which(python.as_std_path())
+            .map_err(|err| {
+                crate::Error::InvalidPythonInterpreter(
+                    format!("Can't find {python} ({err})").into(),
+                )
+            })?
+            .try_into()
+            .map_err(|err: FromPathBufError| err.into_io_error())?;
+        info!("Resolved {python} to {python_in_path}");
+        python_in_path
+    };
+    Ok(python)
 }

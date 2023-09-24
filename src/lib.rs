@@ -6,7 +6,7 @@ use std::io;
 use tempfile::PersistError;
 use thiserror::Error;
 
-pub use interpreter::get_interpreter_info;
+pub use interpreter::{get_interpreter_info, parse_python_cli};
 
 mod bare;
 mod interpreter;
@@ -30,6 +30,8 @@ pub enum Error {
         #[source]
         err: io::Error,
     },
+    #[error("Failed to determine python interpreter to use")]
+    InvalidPythonInterpreter(#[source] Box<dyn std::error::Error + Sync + Send>),
     #[error("Failed to query python interpreter at {interpreter}")]
     PythonSubcommand {
         interpreter: Utf8PathBuf,

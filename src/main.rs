@@ -7,7 +7,7 @@ use tracing::info;
 use tracing_subscriber::layer::SubscriberExt;
 use tracing_subscriber::util::SubscriberInitExt;
 use tracing_subscriber::{fmt, EnvFilter};
-use virtualenv_rs::{create_venv, get_interpreter_info};
+use virtualenv_rs::{create_venv, get_interpreter_info, parse_python_cli};
 
 #[derive(Parser, Debug)]
 struct Cli {
@@ -21,12 +21,9 @@ struct Cli {
 fn run() -> Result<(), virtualenv_rs::Error> {
     let cli = Cli::parse();
     let location = cli.path.unwrap_or(Utf8PathBuf::from(".venv-rs"));
-    let base_python = cli
-        .python
-        .unwrap_or(Utf8PathBuf::from("/home/konsti/.local/bin/python3.11"));
-    let data = get_interpreter_info(&base_python)?;
-
-    create_venv(&location, &base_python, &data, cli.bare)?;
+    let python = parse_python_cli(cli.python)?;
+    let data = get_interpreter_info(&python)?;
+    create_venv(&location, &python, &data, cli.bare)?;
 
     Ok(())
 }

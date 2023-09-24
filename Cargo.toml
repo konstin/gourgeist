@@ -21,6 +21,7 @@ tempfile = "3.8.0"
 thiserror = "1.0.48"
 tracing = "0.1.37"
 tracing-subscriber = { version = "0.3.17", features = ["env-filter"] }
+which = "4.4.2"
 
 [features]
 default = ["install"]
@@ -30,3 +31,7 @@ parallel = ["rayon"]
 # zip implementation
 [profile.dev.package.adler]
 opt-level = 3
+
+[profile.profiling]
+inherits = "release"
+debug = true
