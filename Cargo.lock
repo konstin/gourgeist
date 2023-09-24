@@ -493,8 +493,9 @@ dependencies = [
 
 [[package]]
 name = "install-wheel-rs"
-version = "0.0.3"
-source = "git+https://github.com/konstin/poc-monotrail#d3d1dc7b7d5ae5ac357308da15146c84e0e459b0"
+version = "0.0.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "4cd8c1fd75d1c686f0e18aa3dd60532f119578b32501517576dd539e0be65f1e"
 dependencies = [
  "base64 0.21.4",
  "configparser",
@@ -1221,7 +1222,7 @@ checksum = "49874b5167b65d7193b8aba1567f5c7d93d001cafc34600cee003eda787e483f"
 
 [[package]]
 name = "virtualenv-rs"
-version = "0.1.0"
+version = "0.0.1"
 dependencies = [
  "camino",
  "clap",

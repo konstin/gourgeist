@@ -1,7 +1,11 @@
 [package]
 name = "virtualenv-rs"
-version = "0.1.0"
+version = "0.0.1"
 edition = "2021"
+description = "virtualenv creation implemented in rust"
+repository = "https://github.com/konstin/virtualenv-rs"
+license = "MIT OR Apache-2.0"
+keywords = ["virtualenv", "venv", "python"]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
@@ -11,7 +15,7 @@ clap = { version = "4.4.4", features = ["derive"] }
 configparser = "3.0.2"
 dirs = "5.0.1"
 fs-err = "2.9.0"
-install-wheel-rs = { git = "https://github.com/konstin/poc-monotrail", optional = true }
+install-wheel-rs = { version = "0.0.1", optional = true }
 minreq = { version = "2.10.0", optional = true, features = ["https"] }
 rayon = { version = "1.8.0", optional = true }
 seahash = "4.1.0"
