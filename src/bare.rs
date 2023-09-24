@@ -6,7 +6,8 @@ use fs_err as fs;
 use fs_err::os::unix::fs::symlink;
 use fs_err::File;
 use std::io;
-use std::io::{BufWriter, ErrorKind, Write};
+use std::io::{BufWriter, Write};
+use tracing::info;
 
 /// The bash activate scripts with the venv dependent paths patches out
 const ACTIVATE_TEMPLATES: &[(&str, &str)] = &[
@@ -51,7 +52,15 @@ pub fn create_bare_venv(
     info: &InterpreterInfo,
 ) -> io::Result<VenvPaths> {
     if location.exists() {
-        fs::remove_dir_all(location)?;
+        if location.join("pyvenv.cfg").is_file() {
+            info!("Removing existing directory");
+            fs::remove_dir_all(location)?;
+        } else {
+            return Err(io::Error::new(
+                io::ErrorKind::AlreadyExists,
+                format!("The directory {location} exists, but it is not virtualenv"),
+            ));
+        }
     }
     fs::create_dir_all(location)?;
     // TODO: I bet on windows we'll have to strip the prefix again
@@ -71,13 +80,19 @@ pub fn create_bare_venv(
         }
     };
 
+    fs::write(location.join(".gitignore"), "*")?;
+
+    // Different names for the python interpreter
     fs::create_dir(&bin_dir)?;
     let venv_python = bin_dir.join("python");
     symlink(base_python, &venv_python)?;
-    let dst = bin_dir.join(format!("python{}", info.major));
-    symlink("python", dst)?;
-    let dst = bin_dir.join(format!("python{}.{}", info.major, info.minor));
-    symlink("python", dst)?;
+    symlink("python", bin_dir.join(format!("python{}", info.major)))?;
+    symlink(
+        "python",
+        bin_dir.join(format!("python{}.{}", info.major, info.minor)),
+    )?;
+
+    // Add all the activate scripts for different shells
     for (name, template) in ACTIVATE_TEMPLATES {
         let activator = template
             .replace("{{ VIRTUAL_ENV_DIR }}", location.as_str())
@@ -87,14 +102,13 @@ pub fn create_bare_venv(
             );
         fs::write(bin_dir.join(name), activator)?;
     }
-    fs::write(location.join(".gitignore"), "*")?;
 
     // pyvenv.cfg
     let python_home = base_python
         .parent()
         .ok_or_else(|| {
             io::Error::new(
-                ErrorKind::NotFound,
+                io::ErrorKind::NotFound,
                 "The python interpreter needs to have a parent directory",
             )
         })?
