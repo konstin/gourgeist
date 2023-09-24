@@ -175,7 +175,7 @@ pub fn parse_python_cli(cli_python: Option<Utf8PathBuf>) -> Result<Utf8PathBuf, 
     };
 
     // Call `which` to find it in path, if not given a path
-    let python = if python.iter().count() > 1 {
+    let python = if python.components().count() > 1 {
         // Does this path contain a slash (unix) or backslash (windows)? In that case, assume it's
         // relative or absolute path that we don't need to resolve
         info!("Assuming {python} is a path");

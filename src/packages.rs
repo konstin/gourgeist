@@ -3,11 +3,13 @@ use crate::interpreter::InterpreterInfo;
 use crate::{crate_cache_dir, Error};
 use camino::{FromPathBufError, Utf8Path, Utf8PathBuf};
 use fs_err as fs;
-use install_wheel_rs::{install_wheel, InstallLocation};
+use fs_err::File;
+use install_wheel_rs::{install_wheel, InstallLocation, WheelFilename};
 #[cfg(feature = "parallel")]
 use rayon::iter::{IntoParallelIterator, ParallelIterator};
 use std::io;
 use std::io::BufWriter;
+use std::str::FromStr;
 use tempfile::NamedTempFile;
 use tracing::info;
 
@@ -65,9 +67,11 @@ pub fn install_base_packages(
     iterator
         .map(|(filename, url)| {
             let wheel_file = download_wheel_cached(filename, url)?;
+            let parsed_filename = WheelFilename::from_str(filename).unwrap();
             install_wheel(
                 &install_location,
-                wheel_file.as_std_path(),
+                File::open(wheel_file)?,
+                parsed_filename,
                 false,
                 &[],
                 // Only relevant for monotrail style installation
