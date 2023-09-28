@@ -1,5 +1,6 @@
 use camino::Utf8PathBuf;
 use clap::Parser;
+use gourgeist::{create_venv, get_interpreter_info, parse_python_cli};
 use std::error::Error;
 use std::process::ExitCode;
 use std::time::Instant;
@@ -7,7 +8,6 @@ use tracing::info;
 use tracing_subscriber::layer::SubscriberExt;
 use tracing_subscriber::util::SubscriberInitExt;
 use tracing_subscriber::{fmt, EnvFilter};
-use virtualenv_rs::{create_venv, get_interpreter_info, parse_python_cli};
 
 #[derive(Parser, Debug)]
 struct Cli {
@@ -18,7 +18,7 @@ struct Cli {
     bare: bool,
 }
 
-fn run() -> Result<(), virtualenv_rs::Error> {
+fn run() -> Result<(), gourgeist::Error> {
     let cli = Cli::parse();
     let location = cli.path.unwrap_or(Utf8PathBuf::from(".venv-rs"));
     let python = parse_python_cli(cli.python)?;
