@@ -58,4 +58,4 @@ jobs:
           git config --global user.name "Your Name"
           git config --global init.defaultBranch "main"
       - name: compare_in_git.sh
-        run: bash compare_in_git.sh
+        run: bash compare_in_git.sh > $GITHUB_STEP_SUMMARY
