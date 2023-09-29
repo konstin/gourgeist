@@ -1,6 +1,6 @@
 [package]
 name = "gourgeist"
-version = "0.0.2"
+version = "0.0.3"
 edition = "2021"
 description = "virtualenv creation implemented in rust"
 repository = "https://github.com/konstin/gourgeist"
