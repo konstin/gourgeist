@@ -117,7 +117,7 @@ pub fn create_bare_venv(
         ("home", python_home),
         ("implementation", "CPython".to_string()),
         ("version_info", info.python_version.clone()),
-        ("virtualenv-rs", env!("CARGO_PKG_VERSION").to_string()),
+        ("gourgeist", env!("CARGO_PKG_VERSION").to_string()),
         // I wouldn't allow this option anyway
         ("include-system-site-packages", "false".to_string()),
         ("base-prefix", info.base_prefix.clone()),

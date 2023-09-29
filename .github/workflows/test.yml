@@ -1,4 +1,4 @@
-name: Rust
+name: Test
 
 on:
   push:
@@ -49,5 +49,9 @@ jobs:
           python-version: "3.11"
       - run: pipx install virtualenv
       - uses: Swatinem/rust-cache@v2
+      - name: Configure git
+        run: |
+          git config --global user.email "you@example.com"
+          git config --global user.name "Your Name"
       - name: compare_in_git.sh
         run: bash compare_in_git.sh
