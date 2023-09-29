@@ -34,7 +34,7 @@ jobs:
       - uses: actions/checkout@v3
       - uses: actions/setup-python@v4
         with:
-          python-version: '3.10'
+          python-version: "3.11"
       - run: pipx install virtualenv
       - uses: Swatinem/rust-cache@v2
       - name: benchmark.sh
@@ -46,7 +46,7 @@ jobs:
       - uses: actions/checkout@v3
       - uses: actions/setup-python@v4
         with:
-          python-version: '3.10'
+          python-version: "3.11"
       - run: pipx install virtualenv
       - uses: Swatinem/rust-cache@v2
       - name: compare_in_git.sh
