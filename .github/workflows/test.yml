@@ -41,7 +41,7 @@ jobs:
         with:
           tool: hyperfine@1
       - name: benchmark.sh
-        run: bash benchmark.sh
+        run: bash benchmark.sh > $GITHUB_STEP_SUMMARY
 
   compare-in-git:
     runs-on: ubuntu-latest
