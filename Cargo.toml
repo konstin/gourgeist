@@ -6,6 +6,7 @@ description = "virtualenv creation implemented in rust"
 repository = "https://github.com/konstin/gourgeist"
 license = "MIT OR Apache-2.0"
 keywords = ["virtualenv", "venv", "python"]
+readme = "Readme.md"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
@@ -38,6 +39,7 @@ opt-level = 3
 
 [profile.profiling]
 inherits = "release"
+lto = "thin"
 debug = true
 
 # The profile that 'cargo dist' will build with
