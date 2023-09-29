@@ -2,6 +2,8 @@
 
 Gourgeist is a rust library to create python virtual environments. It also has a CLI.
 
+It currently supports only unix (linux/mac), windows support is missing.
+
 ## Rust
 
 ```rust
