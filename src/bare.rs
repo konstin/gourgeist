@@ -3,6 +3,7 @@
 use crate::interpreter::InterpreterInfo;
 use camino::{Utf8Path, Utf8PathBuf};
 use fs_err as fs;
+#[cfg(unix)]
 use fs_err::os::unix::fs::symlink;
 use fs_err::File;
 use std::io;
@@ -84,13 +85,29 @@ pub fn create_bare_venv(
 
     // Different names for the python interpreter
     fs::create_dir(&bin_dir)?;
-    let venv_python = bin_dir.join("python");
-    symlink(base_python, &venv_python)?;
-    symlink("python", bin_dir.join(format!("python{}", info.major)))?;
-    symlink(
-        "python",
-        bin_dir.join(format!("python{}.{}", info.major, info.minor)),
-    )?;
+    let venv_python = {
+        #[cfg(unix)]
+        {
+            bin_dir.join("python")
+        }
+        #[cfg(windows)]
+        {
+            bin_dir.join("python.exe")
+        }
+        #[cfg(not(any(unix, windows)))]
+        {
+            compile_error!("only unix (like mac and linux) and windows are supported")
+        }
+    };
+    #[cfg(unix)]
+    {
+        symlink(base_python, &venv_python)?;
+        symlink("python", bin_dir.join(format!("python{}", info.major)))?;
+        symlink(
+            "python",
+            bin_dir.join(format!("python{}.{}", info.major, info.minor)),
+        )?;
+    }
 
     // Add all the activate scripts for different shells
     for (name, template) in ACTIVATE_TEMPLATES {
