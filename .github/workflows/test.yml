@@ -20,7 +20,7 @@ jobs:
   build:
     strategy:
       matrix:
-        os: [ubuntu-latest, macos-latest]
+        os: [ ubuntu-latest, macos-latest ]
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v3
@@ -32,8 +32,11 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
-      - uses: Swatinem/rust-cache@v2
+      - uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
       - run: pipx install virtualenv
+      - uses: Swatinem/rust-cache@v2
       - name: benchmark.sh
         run: bash benchmark.sh
 
@@ -41,7 +44,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
-      - uses: Swatinem/rust-cache@v2
+      - uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
       - run: pipx install virtualenv
+      - uses: Swatinem/rust-cache@v2
       - name: compare_in_git.sh
         run: bash compare_in_git.sh
