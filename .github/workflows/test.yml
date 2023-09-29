@@ -39,7 +39,7 @@ jobs:
       - uses: Swatinem/rust-cache@v2
       - uses: taiki-e/install-action@v2
         with:
-          tool: hyperfineq@1
+          tool: hyperfine@1
       - name: benchmark.sh
         run: bash benchmark.sh
 
