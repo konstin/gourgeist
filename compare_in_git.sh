@@ -16,6 +16,7 @@ git -C compare_venv init
 git -C compare_venv add -A
 git -C compare_venv commit -q -m "Initial commit"
 rm -r compare_venv/* # This skips the hidden .git
+mkdir -p target
 mv compare_venv target/compare_venv2
 rust_command
 rm compare_venv/.gitignore
