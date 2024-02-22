@@ -1,3 +1,7 @@
+**See https://github.com/astral-sh/uv/tree/main/crates/gourgeist for the up to date version**
+
+---
+
 # Gourgeist
 
 Gourgeist is a rust library to create python virtual environments. It also has a CLI.
