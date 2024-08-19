@@ -1,4 +1,4 @@
-**See https://github.com/astral-sh/uv/tree/main/crates/gourgeist for the up to date version**
+**See https://github.com/astral-sh/uv/tree/main/crates/uv-virtualenv for the up to date version**
 
 ---
 
